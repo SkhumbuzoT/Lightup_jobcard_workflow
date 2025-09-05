@@ -1,0 +1,144 @@
+{
+  "name": "Manual Meter Job Card Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getRow",
+        "sheetId": "1J0euF4uM9sM1OI8mMZtFUKlgzYQ_-7AmH9L-mQ2fWbs",
+        "range": "A2:Z",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Get Sheet Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": "YOUR_GOOGLE_SHEETS_CREDENTIALS"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": "1hpp1TXgcer82l3zLZwcrBjbjy599_QtO-y1DtGj5tm4",
+        "destinationFolderId": "YOUR_JOB_CARDS_FOLDER_ID",
+        "newName": "={{\"JobCard-\" + $json[\"account_no\"] + \"-\" + $json[\"meter_no\"]}}"
+      },
+      "id": "3",
+      "name": "Copy Job Card Template",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [750, 300],
+      "credentials": {
+        "googleDriveOAuth2Api": "YOUR_GOOGLE_DRIVE_CREDENTIALS"
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://docs.googleapis.com/v1/documents/{{$node[\"Copy Job Card Template\"].json[\"id\"]}}:batchUpdate",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyJson": {
+          "requests": [
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{CustomerName}}", "matchCase": true },
+                "replaceText": "={{$json[\"debtor_name\"] || $json[\"organisation\"]}}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{AccountNo}}", "matchCase": true },
+                "replaceText": "={{$json[\"account_no\"]}}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{PropertyId}}", "matchCase": true },
+                "replaceText": "={{$json[\"property_id\"]}}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{StreetNo}}", "matchCase": true },
+                "replaceText": "={{$json[\"street_no\"]}}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{PhysicalAddress}}", "matchCase": true },
+                "replaceText": "={{$json[\"physical_address\"]}}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{Township}}", "matchCase": true },
+                "replaceText": "={{$json[\"township_desc\"]}}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{OldMeterNo}}", "matchCase": true },
+                "replaceText": "={{$json[\"meter_no\"]}}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{Today}}", "matchCase": true },
+                "replaceText": "={{ new Date().toLocaleDateString() }}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{TechnicianName}}", "matchCase": true },
+                "replaceText": "={{$json[\"technician_name\"]}}"
+              }
+            }
+          ]
+        }
+      },
+      "id": "4",
+      "name": "Replace Placeholders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1000, 300],
+      "credentials": {
+        "httpHeaderAuth": "YOUR_GOOGLE_API_CREDENTIALS"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "updateRow",
+        "sheetId": "1J0euF4uM9sM1OI8mMZtFUKlgzYQ_-7AmH9L-mQ2fWbs",
+        "range": "A2:Z",
+        "keyRow": 1,
+        "updateFields": {
+          "Job Card Link": "={{'https://docs.google.com/document/d/' + $node[\"Copy Job Card Template\"].json[\"id\"]}}"
+        }
+      },
+      "id": "5",
+      "name": "Update Sheet with Job Card Link",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": "YOUR_GOOGLE_SHEETS_CREDENTIALS"
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "Get Sheet Row", "type": "main", "index": 0 }]] },
+    "Get Sheet Row": { "main": [[{ "node": "Copy Job Card Template", "type": "main", "index": 0 }]] },
+    "Copy Job Card Template": { "main": [[{ "node": "Replace Placeholders", "type": "main", "index": 0 }]] },
+    "Replace Placeholders": { "main": [[{ "node": "Update Sheet with Job Card Link", "type": "main", "index": 0 }]] }
+  }
+}
