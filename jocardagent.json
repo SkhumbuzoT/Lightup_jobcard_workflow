@@ -1,0 +1,221 @@
+{
+  "name": "Job Card Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "<YOUR_SHEET_ID>",
+        "range": "Sheet1!A:Z"
+      },
+      "id": "2",
+      "name": "Read Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [450, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<YOUR_CREDENTIAL_ID>",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1
+      },
+      "id": "3",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a data processor. Convert row data into a structured JSON for a Job Card. Always include: Company: Light Up Enterprise, Telephone: 011 789 3456, Email: sales@lightupenterprise.co.za."
+          },
+          {
+            "role": "user",
+            "content": "Row data: {{$json}}"
+          }
+        ]
+      },
+      "id": "4",
+      "name": "OpenAI Chat",
+      "type": "n8n-nodes-base.openAiChat",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "<YOUR_OPENAI_CREDENTIAL_ID>",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": "<YOUR_TEMPLATE_FILE_ID>",
+        "options": {
+          "parents": [
+            "<YOUR_JOB_CARD_FOLDER_ID>"
+          ]
+        }
+      },
+      "id": "5",
+      "name": "Copy Template",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 2,
+      "position": [1050, 300],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "<YOUR_CREDENTIAL_ID>",
+          "name": "Google Drive OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://docs.googleapis.com/v1/documents/{{$json[\"id\"]}}:batchUpdate",
+        "method": "POST",
+        "authentication": "oAuth2",
+        "body": {
+          "requests": [
+            {
+              "replaceAllText": {
+                "containsText": {
+                  "text": "{{Name}}",
+                  "matchCase": true
+                },
+                "replaceText": "={{$json[\"Name\"]}}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": {
+                  "text": "{{Address}}",
+                  "matchCase": true
+                },
+                "replaceText": "={{$json[\"Address\"]}}"
+              }
+            }
+          ]
+        }
+      },
+      "id": "6",
+      "name": "Update Doc Placeholders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "<YOUR_CREDENTIAL_ID>",
+          "name": "Google Docs OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": "<YOUR_SHEET_ID>",
+        "range": "Sheet1!A:Z",
+        "updateAll": false,
+        "updateKey": "ID",
+        "valueInputMode": "RAW",
+        "fields": {
+          "Job Card Link": "https://docs.google.com/document/d/{{$json[\"id\"]}}/edit"
+        }
+      },
+      "id": "7",
+      "name": "Update Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [1450, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<YOUR_CREDENTIAL_ID>",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat": {
+      "main": [
+        [
+          {
+            "node": "Copy Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copy Template": {
+      "main": [
+        [
+          {
+            "node": "Update Doc Placeholders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Doc Placeholders": {
+      "main": [
+        [
+          {
+            "node": "Update Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
